@@ -8,11 +8,13 @@ import (
 	"github.com/solarlune/routine/actions"
 )
 
+// The point of this example is to show how you can create your own functions, and how Collections work.
+
 func defineRoutine(myRoutine *routine.Routine) {
 
 	// You can create your own Actions easily by making functions.
 	print := func(text string) *actions.Function {
-		return actions.NewFunc(
+		return actions.NewFunction(
 			func(b *routine.Block) routine.Flow {
 				fmt.Println(text)
 				return routine.FlowNext
@@ -21,9 +23,9 @@ func defineRoutine(myRoutine *routine.Routine) {
 	}
 
 	// However, Blocks and ActionGates take a variable number of individual Actions -
-	// because of this, you can't supply to them a pre-made slice of Actions, like from
-	// a function. To bypass this, you can use ActionCollections. They are groups of Actions
-	// that are substituted internally for the Actions you supply to those functions.
+	// because of this, you can't supply to them a pre-made slice of multiple Actions, like from
+	// a function. To bypass this, you can use Collections. They are groups of Actions
+	// that are substituted internally for the Actions they contain.
 	slowType := func(text string) *actions.Collection {
 
 		textIndex := 0
@@ -32,7 +34,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 			actions.NewLabel("loop:"+text),
 
-			actions.NewFunc(func(block *routine.Block) routine.Flow {
+			actions.NewFunction(func(block *routine.Block) routine.Flow {
 				fmt.Print(text[:textIndex] + "\r")
 				textIndex++
 				if textIndex >= len(text)+1 {

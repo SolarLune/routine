@@ -8,6 +8,8 @@ The general idea is that you create a Routine, and then define a Block. Blocks a
 
 By utilizing Actions and Blocks, you can make up complex behaviors, or sequences of events.
 
+_Note: This package supercedes [gocoro](github.com/solarlune/gocoro), which was my previous attempt at coroutines. If you want something with a more functional design and that is more traditionally coroutine-y, check out stealthrocket's [coroutine](https://github.com/stealthrocket/coroutine)._
+
 ## How do I get it?
 
 `go get github.com/solarlune/routine`
@@ -24,14 +26,17 @@ func main() {
     // Create a new Routine.
     routine := routine.New()
 
-    // And now we begin to define our Blocks, which consist of Action objects that execute in sequence.
-    // A Block has an ID (in this case, a string set to "first block"), but the ID can be anything.
+    // And now we begin to define our Blocks, which consist of Actions 
+    // that execute in sequence.
+    // A Block has an ID (in this case, a string set to "first block"), 
+    // but the ID can be anything.
     routine.DefineBlock("first block", 
     
-        // actions.NewFunction() returns a ActionFunc, which is a function that will run the action provided.
+        // actions.NewFunction() returns a Function action. You provide it 
+        // with a customizeable function.
         // Depending on the Flow object returned, the Block will either idle on this Action, or move
         // on to another one.
-        actions.NewFunction(func() routine.Flow { 
+        actions.NewFunction(func(block *routine.Block) routine.Flow { 
             fmt.Println("Hi!")
             return routine.FlowNext // FlowNext means to move to the next Action.
         }),

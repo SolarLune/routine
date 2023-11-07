@@ -311,7 +311,7 @@ func (r *Routine) DeactivateBlock(blockIDs ...any) {
 	}
 }
 
-// SwitchBlock will switch only blocks with the given label names to be active.
+// SwitchBlock will only activate blocks with any of the given label names, and deactivates all others.
 func (r *Routine) SwitchBlock(labels ...any) {
 
 	for _, block := range r.Blocks {
@@ -328,7 +328,8 @@ func (r *Routine) SwitchBlock(labels ...any) {
 
 }
 
-func (r *Routine) BlockByName(idLabel any) *Block {
+// BlockByID returns any Block found with the given ID.
+func (r *Routine) BlockByID(idLabel any) *Block {
 	for _, block := range r.Blocks {
 		if block.ID == idLabel {
 			return block

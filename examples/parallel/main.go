@@ -22,7 +22,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 	// The first block executes every 2 seconds.
 	myRoutine.DefineBlock(0,
 
-		actions.NewFunc(func(block *routine.Block) routine.Flow {
+		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			fmt.Println("First block is just the beginning...")
 
 			// Activate the next block; this happens every 2 seconds.
@@ -37,7 +37,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 	// The second block executes every half second.
 	myRoutine.DefineBlock(1,
 
-		actions.NewFunc(func(block *routine.Block) routine.Flow {
+		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			fmt.Println("second block is alive and well...")
 			return routine.FlowNext
 		}),
@@ -48,7 +48,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 	// The third block executes 10 times a second.
 	myRoutine.DefineBlock(2,
 
-		actions.NewFunc(func(block *routine.Block) routine.Flow {
+		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			fmt.Println("third block is going crazy...")
 			return routine.FlowNext
 		}),
@@ -59,7 +59,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 	// The fourth block executes 20 times a second.
 	myRoutine.DefineBlock(3,
 
-		actions.NewFunc(func(block *routine.Block) routine.Flow {
+		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			fmt.Println("fourth block is kinda insane...!!!")
 			return routine.FlowNext
 		}),
@@ -70,7 +70,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 	// The last block ends it.
 	myRoutine.DefineBlock(4,
 
-		actions.NewFunc(func(block *routine.Block) routine.Flow {
+		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			// Set only this block to be active
 			myRoutine.SwitchBlock(4)
 			fmt.Println("OK, I'm done. All tuckered out.")

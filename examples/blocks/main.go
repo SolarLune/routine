@@ -25,7 +25,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 			return routine.FlowNext
 		}
 
-		return actions.NewFunc(f)
+		return actions.NewFunction(f)
 
 	}
 
@@ -47,7 +47,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 		actions.NewWait(time.Second*1),
 
-		// We can switch blocks using SetBlocks; any blocks with the given names will be activated.
+		// We can switch blocks using actions.NewSwitchBlock() or Routine.SwitchBlock(). Any blocks with the given names will be activated.
 		actions.NewSwitchBlock("progress"),
 	)
 
@@ -61,7 +61,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 		actions.NewWait(time.Second*2),
 
-		actions.NewFunc(func(block *routine.Block) routine.Flow {
+		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			drawProgress = true
 			progress += 5
 			if progress >= 100 {
@@ -74,7 +74,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 		customPrint("Done!"),
 
-		actions.NewFunc(func(block *routine.Block) routine.Flow {
+		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			return routine.FlowNext
 		}),
 

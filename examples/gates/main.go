@@ -17,12 +17,12 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 		return actions.NewCollection(
 
-			actions.NewFunc(func(block *routine.Block) routine.Flow {
+			actions.NewFunction(func(block *routine.Block) routine.Flow {
 				fmt.Println(text)
 				return routine.FlowNext
 			}),
 
-			actions.NewWait(time.Second*2),
+			actions.NewWait(time.Second*1),
 		)
 
 	}
@@ -31,10 +31,10 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 	myRoutine.DefineBlock("first",
 
-		print("OK, so let's try an ActionGate out."),
-		print("Let's see which option we get..."),
+		print("OK, so let's try an ActionGate."),
+		print("Let's see which option we randomly get..."),
 
-		actions.NewFunc(func(block *routine.Block) routine.Flow {
+		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			choice = rand.Intn(3)
 			return routine.FlowNext
 		}),
@@ -62,7 +62,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 			),
 		),
 
-		print("Nice!"),
+		print("Nice! Let's try again."),
 	)
 
 }

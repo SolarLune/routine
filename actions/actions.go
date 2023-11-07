@@ -37,10 +37,10 @@ type Function struct {
 	PollFunc func(block *routine.Block) routine.Flow // The function to run when polled
 }
 
-// NewFunc creates and returns a ActionFunc object with the polling function set to the
+// NewFunction creates and returns a ActionFunc object with the polling function set to the
 // provided function. The routine.Flow returned from the customizeable function influences
 // the Routine does after running the function.
-func NewFunc(function func(block *routine.Block) routine.Flow) *Function {
+func NewFunction(function func(block *routine.Block) routine.Flow) *Function {
 	return &Function{
 		PollFunc: function,
 	}
@@ -275,7 +275,7 @@ func (l *Label) ID() any { return l.Label }
 // NewJumpTo creates a Function action that jumps the Block to the ActionLabel that has
 // the specified label ID.
 func NewJumpTo(label any) *Function {
-	return NewFunc(
+	return NewFunction(
 		func(block *routine.Block) routine.Flow {
 			block.JumpTo(label)
 			return routine.FlowNext
@@ -283,10 +283,10 @@ func NewJumpTo(label any) *Function {
 	)
 }
 
-// NewSwitchBlock creates a Function action that switches the routine to only blocks with
+// NewSwitchBlock creates a Function action that switches the routine to only activate blocks with
 // the specified IDs.
 func NewSwitchBlock(blockIDs ...any) *Function {
-	return NewFunc(
+	return NewFunction(
 		func(block *routine.Block) routine.Flow {
 			block.Routine.SwitchBlock(blockIDs...)
 			return routine.FlowNext
@@ -297,7 +297,7 @@ func NewSwitchBlock(blockIDs ...any) *Function {
 // NewActivateBlock creates a Function action that activates the specified blocks in the
 // currently running Routine. Any other blocks are unaffected.
 func NewActivateBlock(blockIDs ...any) *Function {
-	return NewFunc(
+	return NewFunction(
 		func(block *routine.Block) routine.Flow {
 			block.Routine.ActivateBlock(blockIDs...)
 			return routine.FlowNext
@@ -308,7 +308,7 @@ func NewActivateBlock(blockIDs ...any) *Function {
 // NewDeactivateBlock creates a Function action that deactivates the specified blocks
 // in the currently running Routine. Any other blocks are unaffected.
 func NewDeactivateBlock(blockIDs ...any) *Function {
-	return NewFunc(
+	return NewFunction(
 		func(block *routine.Block) routine.Flow {
 			block.Routine.DeactivateBlock(blockIDs...)
 			return routine.FlowNext
@@ -320,7 +320,7 @@ func NewDeactivateBlock(blockIDs ...any) *Function {
 // specified Action index number.
 // (In other words, NewSetIndex(0) restarts the Block.)
 func NewSetIndex(index int) *Function {
-	return NewFunc(
+	return NewFunction(
 		func(block *routine.Block) routine.Flow {
 			block.SetIndex(index)
 			return routine.FlowNext
@@ -331,7 +331,7 @@ func NewSetIndex(index int) *Function {
 // NewFinish creates a ActionFunc that simply returns routine.FlowFinish, indicating
 // that the Routine has finished and should stop running.
 func NewFinish() *Function {
-	return NewFunc(
+	return NewFunction(
 		func(block *routine.Block) routine.Flow {
 			return routine.FlowFinish
 		},
