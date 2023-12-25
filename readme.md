@@ -32,10 +32,10 @@ func main() {
     // but the ID can be anything.
     routine.DefineBlock("first block", 
     
-        // actions.NewFunction() returns a Function action. You provide it 
-        // with a customizeable function.
-        // Depending on the Flow object returned, the Block will either idle on this Action, or move
-        // on to another one.
+        // actions.NewFunction() returns a Function action. 
+        // You provide it with a customizeable function.
+        // Depending on the Flow object returned, the Block 
+        // will either idle on this Action, or move on to another one.
         actions.NewFunction(func(block *routine.Block) routine.Flow { 
             fmt.Println("Hi!")
             return routine.FlowNext // FlowNext means to move to the next Action.
@@ -57,9 +57,9 @@ func main() {
     for routine.Running() {
 
         // While the routine runs, we call Routine.Update(). This allows
-        // the routine to execute, but also gives Action back to the main
-        // thread when it's cycling (done until the next frame / Update() call) 
-        // so we can do other stuff, like take input or update a game's screen.
+        // the routine to execute, but also gives action back to the main
+        // thread when it's idling so we can do other stuff, like take input
+        // or update a game's screen.
         routine.Update()
 
     }
