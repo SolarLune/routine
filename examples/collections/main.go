@@ -64,7 +64,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 		print("Done!"),
 
-		actions.NewFinish(),
+		actions.NewFinishRoutine(),
 	)
 
 }

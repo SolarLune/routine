@@ -50,10 +50,9 @@ func defineRoutine(myRoutine *routine.Routine) {
 		actions.NewFunction(func(block *routine.Block) routine.Flow {
 
 			fmt.Println("Done!")
-
-			// We can return RoutineFlowFinish here, or use actions.NewFinish() to create a finishing Action to end the
+			// We can return routine.FlowFinishRoutine here, or use actions.NewFinish() to create a finishing Action to end the
 			// Routine; whichever works.
-			return routine.FlowFinish
+			return routine.FlowFinishRoutine
 
 		}),
 	)

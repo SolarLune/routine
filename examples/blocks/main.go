@@ -12,7 +12,8 @@ var drawProgress = false
 var progress = 0
 
 // This example shows how you can easily jump from one active block to another.
-
+// A block represents a sequence of actions, tied to an ID that identifies that Block.
+// Multiple Blocks can be active at any given time.
 func defineRoutine(myRoutine *routine.Routine) {
 
 	// You can easily create your own functional Actions by simply creating a function that returns an ActionFunc
@@ -80,10 +81,9 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 		actions.NewWait(time.Second*2),
 
-		// If we don't finish explicitly, either with a custom ActionFunc that returns RoutineFlowFinish or
-		// Flow.Finish() (which is just a actionsuickie function that creates a ActionFunc returning RoutineFlowFinish),
-		// the Routine would loop infinitely.
-		actions.NewFinish(),
+		// Blocks will automatically stop at the end of their Action list.
+		// If no blocks are running, the Routine will also, by default, stop.
+
 	)
 
 }

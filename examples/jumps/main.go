@@ -26,7 +26,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 		actions.NewJumpTo("after finish"),
 
-		actions.NewFinish(), // If we didn't jump to the "after finish" label, then this would have ended the Block's execution.
+		actions.NewFinishRoutine(), // If we didn't jump to the "after finish" label, then this would have ended the Block's execution.
 
 		actions.NewLabel("after finish"),
 
@@ -39,7 +39,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			fmt.Println("OK, that's it.")
-			return routine.FlowFinish
+			return routine.FlowFinishRoutine
 		}),
 	)
 

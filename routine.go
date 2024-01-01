@@ -52,8 +52,10 @@ const (
 	// FlowNext means that the Routine should move on to the next Action in the Block.
 	// If this is returned from the last Action in a Block, the Block will loop.
 	FlowNext
-	// FlowFinish means that the Routine should finish its execution.
-	FlowFinish
+	// FlowFinishBlock indicates the Block should finish its execution.
+	FlowFinishBlock
+	// FlowFinishRoutine means that the entire Routine should finish its execution.
+	FlowFinishRoutine
 )
 
 // Action is an interface that represents an object that can Action and direct the flow of a Routine.
@@ -151,12 +153,20 @@ func (b *Block) update() {
 		}
 
 		if b.index > len(b.Actions)-1 {
-			b.index = 0 // Restart if we're going to the next Action and we're at the end of the block
+			b.index = 0
+			b.Active = false // Restart if we're going to the next Action and we're at the end of the block
+			b.isActive = false
 		}
 
 		b.Actions[b.index].Init(b)
 
-	case FlowFinish:
+	case FlowFinishBlock:
+		b.index = 0
+		b.Active = false // Restart if we're going to the next Action and we're at the end of the block
+		b.isActive = false
+		b.Actions[b.index].Init(b)
+
+	case FlowFinishRoutine:
 		b.Routine.Stop()
 
 	case FlowIdle:
@@ -172,16 +182,18 @@ func (b *Block) update() {
 // Routine represents a running function that will execute
 // until the Routine is finished.
 type Routine struct {
-	running    bool
-	Blocks     []*Block
-	properties *Properties
+	running           bool
+	Blocks            []*Block
+	properties        *Properties
+	AutomaticallyStop bool // If the Routine should automatically stop if no Blocks are active
 }
 
 // New creates a new Routine.
 func New() *Routine {
 	r := &Routine{
-		Blocks:     []*Block{},
-		properties: &Properties{},
+		Blocks:            []*Block{},
+		properties:        &Properties{},
+		AutomaticallyStop: true,
 	}
 	return r
 }
@@ -267,8 +279,17 @@ func (r *Routine) Update() {
 			block.update()
 		}
 
+		anyBlocksActive := false
+
 		for _, block := range r.Blocks {
 			block.isActive = block.Active
+			if block.isActive {
+				anyBlocksActive = true
+			}
+		}
+
+		if r.AutomaticallyStop && !anyBlocksActive {
+			r.Stop()
 		}
 
 	}
@@ -304,6 +325,7 @@ func (r *Routine) DeactivateBlock(blockIDs ...any) {
 	for _, block := range r.Blocks {
 		for _, label := range blockIDs {
 			if block.ID == label {
+				block.Restart()
 				block.Active = false
 				break
 			}
@@ -311,17 +333,22 @@ func (r *Routine) DeactivateBlock(blockIDs ...any) {
 	}
 }
 
-// SwitchBlock will only activate blocks with any of the given label names, and deactivates all others.
-func (r *Routine) SwitchBlock(labels ...any) {
+// SwitchBlock will only activate blocks with any of the given IDs, and deactivates all others.
+func (r *Routine) SwitchBlock(blockIDs ...any) {
 
 	for _, block := range r.Blocks {
 		block.Active = false
 
-		for _, label := range labels {
+		for _, label := range blockIDs {
 			if block.ID == label {
 				block.Active = true
 				break
 			}
+		}
+
+		// Restart inactivated blocks
+		if !block.Active {
+			block.Restart()
 		}
 
 	}

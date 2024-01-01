@@ -32,6 +32,8 @@ func defineRoutine(myRoutine *routine.Routine) {
 		}),
 
 		actions.NewWait(time.Second*2),
+
+		actions.NewLoop(),
 	)
 
 	// The second block executes every half second.
@@ -43,6 +45,8 @@ func defineRoutine(myRoutine *routine.Routine) {
 		}),
 
 		actions.NewWait(time.Second/2),
+
+		actions.NewLoop(),
 	)
 
 	// The third block executes 10 times a second.
@@ -54,6 +58,8 @@ func defineRoutine(myRoutine *routine.Routine) {
 		}),
 
 		actions.NewWait(time.Second/10),
+
+		actions.NewLoop(),
 	)
 
 	// The fourth block executes 20 times a second.
@@ -65,6 +71,8 @@ func defineRoutine(myRoutine *routine.Routine) {
 		}),
 
 		actions.NewWait(time.Second/20),
+
+		actions.NewLoop(),
 	)
 
 	// The last block ends it.
@@ -79,7 +87,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 		actions.NewWait(time.Second),
 
-		actions.NewFinish(),
+		actions.NewFinishRoutine(),
 	)
 
 }

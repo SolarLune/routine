@@ -8,10 +8,7 @@ import (
 	"github.com/solarlune/routine/actions"
 )
 
-// In this example, we see how blocks loop by default.
-// If an Action doesn't explicitly finish a Routine's execution, then returning routine.FlowNext at the end
-// of a Block will cause the Block to loop.
-
+// In this example, we see how we can make blocks loop.
 func defineRoutine(myRoutine *routine.Routine) {
 
 	loopCount := 4
@@ -22,7 +19,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 			if loopCount == 0 {
 				fmt.Println("Welp, that's it. Routine over~")
-				return routine.FlowFinish
+				return routine.FlowFinishRoutine
 			}
 
 			fmt.Printf("This block will loop %d more times.\n", loopCount-1)
@@ -42,6 +39,8 @@ func defineRoutine(myRoutine *routine.Routine) {
 			return routine.FlowNext
 
 		}),
+
+		actions.NewLoop(),
 	)
 
 }

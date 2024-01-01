@@ -58,11 +58,13 @@ func defineRoutine(myRoutine *routine.Routine) {
 				func() bool { return choice == 2 },
 				print("The third choice was chosen."),
 				print("This one is a loser - game over!"),
-				actions.NewFinish(),
+				actions.NewFinishRoutine(),
 			),
 		),
 
 		print("Nice! Let's try again."),
+
+		actions.NewLoop(),
 	)
 
 }

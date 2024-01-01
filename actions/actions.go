@@ -31,13 +31,39 @@ func (w *Wait) Poll(block *routine.Block) routine.Flow {
 	return routine.FlowIdle
 }
 
+// WaitTicks is an action that waits a certain amount of ticks before continuing.
+type WaitTicks struct {
+	TickCount        int
+	CurrentTickCount int
+}
+
+// NewWaitTicks creates a new WaitTicks Action.
+func NewWaitTicks(tickCount int) *WaitTicks {
+	wait := &WaitTicks{
+		TickCount: tickCount,
+	}
+	return wait
+}
+
+func (w *WaitTicks) Init(block *routine.Block) {
+	w.CurrentTickCount = 0
+}
+
+func (w *WaitTicks) Poll(block *routine.Block) routine.Flow {
+	w.CurrentTickCount++
+	if w.CurrentTickCount >= w.TickCount {
+		return routine.FlowNext
+	}
+	return routine.FlowIdle
+}
+
 // Function is a Action that runs a customizeable function.
 type Function struct {
 	InitFunc func(block *routine.Block)              // The function to run when the ActionFunc object is initialized (before polling)
 	PollFunc func(block *routine.Block) routine.Flow // The function to run when polled
 }
 
-// NewFunction creates and returns a ActionFunc object with the polling function set to the
+// NewFunction creates and returns a Function action object with the polling function set to the
 // provided function. The routine.Flow returned from the customizeable function influences
 // the Routine does after running the function.
 func NewFunction(function func(block *routine.Block) routine.Flow) *Function {
@@ -155,8 +181,8 @@ func (g *GateOption) Poll(block *routine.Block) routine.Flow {
 		}
 	}
 
-	if result == routine.FlowFinish {
-		return routine.FlowFinish
+	if result == routine.FlowFinishRoutine {
+		return routine.FlowFinishRoutine
 	} else if done {
 		return routine.FlowNext
 	}
@@ -237,8 +263,9 @@ type Collection struct {
 	actions []routine.Action
 }
 
-// Collection creates a ActionCollection, which is a collection of Actions that gets "absorbed" into a
-// Block or GateEntry action.
+// Collection creates a ActionCollection, which is a collection of Actions (naturally).
+// A Collection by itself does nothing. Instead, the Actions that it is created with are
+// supplied in sequence to other Actions that take individual Actions.
 func NewCollection(Actions ...routine.Action) *Collection {
 	return &Collection{
 		actions: Actions,
@@ -328,12 +355,30 @@ func NewSetIndex(index int) *Function {
 	)
 }
 
-// NewFinish creates a ActionFunc that simply returns routine.FlowFinish, indicating
-// that the Routine has finished and should stop running.
-func NewFinish() *Function {
+// NewFinishBlock creates a Function action that simply returns routine.FlowFinishBlock, indicating
+// that the current Block has finished and should stop running.
+func NewFinishBlock() *Function {
 	return NewFunction(
 		func(block *routine.Block) routine.Flow {
-			return routine.FlowFinish
+			return routine.FlowFinishBlock
 		},
 	)
+}
+
+// NewFinishRoutine creates a Function action that simply returns routine.FlowFinishRoutine, indicating
+// that the Routine has finished and should stop running.
+func NewFinishRoutine() *Function {
+	return NewFunction(
+		func(block *routine.Block) routine.Flow {
+			return routine.FlowFinishRoutine
+		},
+	)
+}
+
+// NewLoop creates a Function action that simply loops the current block's execution.
+func NewLoop() *Function {
+	return NewFunction(func(block *routine.Block) routine.Flow {
+		block.SetIndex(0)
+		return routine.FlowNext
+	})
 }
