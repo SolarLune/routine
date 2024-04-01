@@ -13,7 +13,7 @@ import (
 func defineRoutine(myRoutine *routine.Routine) {
 
 	// You can create your own Actions easily by making functions.
-	print := func(text string) *actions.Function {
+	printText := func(text string) *actions.Function {
 		return actions.NewFunction(
 			func(b *routine.Block) routine.Flow {
 				fmt.Println(text)
@@ -26,46 +26,56 @@ func defineRoutine(myRoutine *routine.Routine) {
 	// because of this, you can't supply to them a pre-made slice of multiple Actions, like from
 	// a function. To bypass this, you can use Collections. They are groups of Actions
 	// that are substituted internally for the Actions they contain.
-	slowType := func(text string) *actions.Collection {
+	typeText := func(text string) *actions.Collection {
 
 		textIndex := 0
 
+		// When this is added to a Block definition, the block will take the actions from the Collection.
 		return actions.NewCollection(
+
+			// We use "loop:"+text and "finish:"+text here because multiple slowType functions will define multliple labels
+			// for jumping, so we use the text as essentially an identifier of which parts to jump to in the Block.
 
 			actions.NewLabel("loop:"+text),
 
 			actions.NewFunction(func(block *routine.Block) routine.Flow {
-				fmt.Print(text[:textIndex] + "\r")
-				textIndex++
 				if textIndex >= len(text)+1 {
 					fmt.Print("\n")
-					block.JumpTo("finish")
+					block.JumpTo("finish:" + text)
+					return routine.FlowNext
+				} else {
+					fmt.Print(text[:textIndex] + "\r")
 				}
+				textIndex++
 				return routine.FlowNext
 			}),
 
-			actions.NewWait(time.Second/10),
+			actions.NewWait(time.Second/20),
 
 			actions.NewJumpTo("loop:"+text),
 
-			actions.NewLabel("finish"),
+			actions.NewLabel("finish:"+text),
 		)
 	}
 
-	myRoutine.DefineBlock("first",
+	myRoutine.Define("first",
 
-		print("You can easily make your own Actions by using functions."),
+		printText("You can easily make your own Actions by using Function Actions or Collection Actions for groups of Actions."),
 
 		actions.NewWait(time.Second*2),
 
-		slowType("For example, here's a slow typing Action."),
+		typeText("For example, here's a typing Action."),
+
+		typeText("This is a function that returns a Collection of multiple Actions that, when combined, type a message out to the console."),
 
 		actions.NewWait(time.Second),
 
-		print("Done!"),
+		printText("Done!"),
 
-		actions.NewFinishRoutine(),
+		actions.NewFinish(),
 	)
+
+	myRoutine.Run("first")
 
 }
 
@@ -76,9 +86,6 @@ func main() {
 
 	// Define the routine.
 	defineRoutine(myRoutine)
-
-	// Run the routine.
-	myRoutine.Run()
 
 	// While it's running...
 	for myRoutine.Running() {

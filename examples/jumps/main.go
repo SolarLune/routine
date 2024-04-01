@@ -13,12 +13,13 @@ import (
 // the block definition with actions.NewJumpTo().
 func defineRoutine(myRoutine *routine.Routine) {
 
-	myRoutine.DefineBlock("first",
+	myRoutine.Define("first",
 
 		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			fmt.Println("Let's test jumping to a label.")
 			// We can also jump within a function with block.JumpTo(). Note that this, of course, wouldn't end the function early
 			// automatically; we would still have to return a routine.Flow.
+
 			return routine.FlowNext
 		}),
 
@@ -26,7 +27,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 		actions.NewJumpTo("after finish"),
 
-		actions.NewFinishRoutine(), // If we didn't jump to the "after finish" label, then this would have ended the Block's execution.
+		actions.NewFinish(), // If we didn't jump to the "after finish" label, then this would have ended the Block's execution.
 
 		actions.NewLabel("after finish"),
 
@@ -39,9 +40,11 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			fmt.Println("OK, that's it.")
-			return routine.FlowFinishRoutine
+			return routine.FlowFinish
 		}),
 	)
+
+	myRoutine.Run("first")
 
 }
 
@@ -52,9 +55,6 @@ func main() {
 
 	// Define the routine.
 	defineRoutine(myRoutine)
-
-	// Run the routine.
-	myRoutine.Run()
 
 	// While it's running...
 	for myRoutine.Running() {

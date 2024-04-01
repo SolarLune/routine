@@ -13,13 +13,13 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 	loopCount := 4
 
-	myRoutine.DefineBlock("loop",
+	myRoutine.Define("loop",
 
 		actions.NewFunction(func(block *routine.Block) routine.Flow {
 
 			if loopCount == 0 {
 				fmt.Println("Welp, that's it. Routine over~")
-				return routine.FlowFinishRoutine
+				return routine.FlowFinish
 			}
 
 			fmt.Printf("This block will loop %d more times.\n", loopCount-1)
@@ -43,6 +43,8 @@ func defineRoutine(myRoutine *routine.Routine) {
 		actions.NewLoop(),
 	)
 
+	myRoutine.Run("loop")
+
 }
 
 func main() {
@@ -52,9 +54,6 @@ func main() {
 
 	// Define the routine.
 	defineRoutine(myRoutine)
-
-	// Run the routine.
-	myRoutine.Run()
 
 	// While it's running...
 	for myRoutine.Running() {

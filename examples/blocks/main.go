@@ -19,7 +19,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 	// You can easily create your own functional Actions by simply creating a function that returns an ActionFunc
 	// with your own custom function defined within. You can then call these functions within a Block definition,
 	// like you would any of the actionsuickActions functions.
-	customPrint := func(text string) *actions.Function {
+	printText := func(text string) *actions.Function {
 
 		f := func(block *routine.Block) routine.Flow {
 			fmt.Println(block.ID.(string) + " : " + text)
@@ -30,35 +30,36 @@ func defineRoutine(myRoutine *routine.Routine) {
 
 	}
 
-	myRoutine.DefineBlock("first",
+	first := myRoutine.Define("first",
 
-		customPrint("In this example, we will switch from one block to another."),
+		printText("In this example, we will switch from one block to another."),
 
 		actions.NewWait(time.Second*2),
 
-		customPrint("Let's fill up a progress bar, but we'll do this in the 'progress' block."),
+		printText("Let's fill up a progress bar, but we'll do this in the 'progress' block."),
 
 		actions.NewWait(time.Second*3),
 
-		customPrint("Let's switch now!"),
+		printText("Let's switch now!"),
 
 		actions.NewWait(time.Second*2),
 
-		customPrint("-click-"),
+		printText("-click-"),
 
 		actions.NewWait(time.Second*1),
 
-		// We can switch blocks using actions.NewSwitchBlock() or Routine.SwitchBlock(). Any blocks with the given names will be activated.
-		actions.NewSwitchBlock("progress"),
+		actions.NewRunBlock("progress"),
 	)
 
-	myRoutine.DefineBlock("progress",
+	first.Run() // Schedule the "first" Block to run first
 
-		customPrint("OK. Now we're in the 'progress' block."),
+	myRoutine.Define("progress",
+
+		printText("OK. Now we're in the 'progress' block."),
 
 		actions.NewWait(time.Second*2),
 
-		customPrint("Filling up progress bar..."),
+		printText("Filling up progress bar..."),
 
 		actions.NewWait(time.Second*2),
 
@@ -66,14 +67,14 @@ func defineRoutine(myRoutine *routine.Routine) {
 			drawProgress = true
 			progress += 5
 			if progress >= 100 {
-				fmt.Println("") // Skip a line
+				fmt.Print("\n") // Skip a line
 				drawProgress = false
 				return routine.FlowNext
 			}
 			return routine.FlowIdle
 		}),
 
-		customPrint("Done!"),
+		printText("Done!"),
 
 		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			return routine.FlowNext
@@ -95,9 +96,6 @@ func main() {
 
 	// Define the routine.
 	defineRoutine(myRoutine)
-
-	// Run the routine.
-	myRoutine.Run()
 
 	// While it's running...
 	for myRoutine.Running() {

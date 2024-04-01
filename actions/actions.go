@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"math/rand"
 	"time"
 
 	"github.com/solarlune/routine"
@@ -31,30 +32,37 @@ func (w *Wait) Poll(block *routine.Block) routine.Flow {
 	return routine.FlowIdle
 }
 
-// WaitTicks is an action that waits a certain amount of ticks before continuing.
-type WaitTicks struct {
-	TickCount        int
-	CurrentTickCount int
+// NewWaitTicks creates a new action that waits a certain amount of time before proceeding.
+func NewWaitTicks(tickCount int) *Function {
+	return NewFunction(func(block *routine.Block) routine.Flow {
+
+		if block.CurrentFrame() >= tickCount {
+			return routine.FlowNext
+		}
+
+		return routine.FlowIdle
+
+	})
 }
 
-// NewWaitTicks creates a new WaitTicks Action.
-func NewWaitTicks(tickCount int) *WaitTicks {
-	wait := &WaitTicks{
-		TickCount: tickCount,
-	}
-	return wait
-}
+// NewWaitTicks creates a new action that waits a random amount of time, ranging between minTime and maxTime, before proceeding.
+func NewWaitTicksRandom(minTime, maxTime int) *Function {
 
-func (w *WaitTicks) Init(block *routine.Block) {
-	w.CurrentTickCount = 0
-}
+	tickCount := 0
 
-func (w *WaitTicks) Poll(block *routine.Block) routine.Flow {
-	w.CurrentTickCount++
-	if w.CurrentTickCount >= w.TickCount {
-		return routine.FlowNext
-	}
-	return routine.FlowIdle
+	return NewFunction(func(block *routine.Block) routine.Flow {
+
+		if block.CurrentFrame() == 0 {
+			tickCount = minTime + int((float64(maxTime-minTime) * rand.Float64()))
+		}
+
+		if block.CurrentFrame() >= tickCount {
+			return routine.FlowNext
+		}
+
+		return routine.FlowIdle
+
+	})
 }
 
 // Function is a Action that runs a customizeable function.
@@ -138,9 +146,13 @@ type GateOption struct {
 	Index     int
 }
 
-// NewGateOption creates a new GateOption object, which represents a choice in an ActionGate. The checkFunc()
+// NewGateOption creates a new GateOption object, which represents a choice in an ActionGate. The checkFunc
 // argument signifies a function that determines if the entry is made active. If it is made active,
 // then the Actions within (and only those Actions) are executed in sequence until the end.
+// If checkFunc is nil, then that is equivalent to a checkFunc definition of func() bool { return true }.
+// A checkFunc of nil can be used as an "else" statement when used after all other entries in a Gate.
+// If no actions are passed for the option, then if the check function returns true (or is nil), then the
+// Block will move on to the next action after the Gate.
 func NewGateOption(checkFunc func() bool, Actions ...routine.Action) *GateOption {
 
 	newActions := []routine.Action{}
@@ -166,6 +178,10 @@ func (g *GateOption) Init(block *routine.Block) {
 
 func (g *GateOption) Poll(block *routine.Block) routine.Flow {
 
+	if len(g.actions) == 0 {
+		return routine.FlowNext
+	}
+
 	result := g.actions[g.Index].Poll(block)
 
 	done := false
@@ -181,8 +197,8 @@ func (g *GateOption) Poll(block *routine.Block) routine.Flow {
 		}
 	}
 
-	if result == routine.FlowFinishRoutine {
-		return routine.FlowFinishRoutine
+	if result == routine.FlowFinish {
+		return routine.FlowFinish
 	} else if done {
 		return routine.FlowNext
 	}
@@ -195,7 +211,7 @@ func (g *GateOption) Poll(block *routine.Block) routine.Flow {
 // an execution path (one of the passed GateOptions). Once the logic statement is executed,
 // the gate is set until it is reset by revisiting the Action.
 type Gate struct {
-	Entries     []*GateOption
+	Options     []*GateOption
 	ActiveEntry *GateOption
 	onIdle      func()
 	onChoose    func()
@@ -203,17 +219,25 @@ type Gate struct {
 
 // NewGate creates a Gate action, which allows you to effectively choose one "route" or "choice"
 // option among many.
-// Once one entry has been made active, it will stay active until the owning Block revisits the
-// ActionGate.
+// Once one GateOption has been made active, it will stay active until the Gate runs
+// through all actions the GateOption might have.
 func NewGate(entries ...*GateOption) *Gate {
 	return &Gate{
-		Entries: entries,
+		Options: entries,
 	}
 }
 
+// AddOption adds an option to the Gate action.
+func (c *Gate) AddOption(option *GateOption) *Gate {
+	c.Options = append(c.Options, option)
+	return c
+}
+
 func (c *Gate) Init(block *routine.Block) {
-	for _, entry := range c.Entries {
-		entry.actions[0].Init(block)
+	for _, entry := range c.Options {
+		if len(entry.actions) > 0 {
+			entry.actions[0].Init(block)
+		}
 	}
 	c.ActiveEntry = nil
 }
@@ -226,8 +250,8 @@ func (c *Gate) Poll(block *routine.Block) routine.Flow {
 		if c.onIdle != nil {
 			c.onIdle()
 		}
-		for _, entry := range c.Entries {
-			if entry.CheckFunc() {
+		for _, entry := range c.Options {
+			if entry.CheckFunc == nil || entry.CheckFunc() {
 				c.ActiveEntry = entry
 				if c.onChoose != nil {
 					c.onChoose()
@@ -266,10 +290,25 @@ type Collection struct {
 // Collection creates a ActionCollection, which is a collection of Actions (naturally).
 // A Collection by itself does nothing. Instead, the Actions that it is created with are
 // supplied in sequence to other Actions that take individual Actions.
-func NewCollection(Actions ...routine.Action) *Collection {
-	return &Collection{
-		actions: Actions,
+func NewCollection(actions ...routine.Action) *Collection {
+	collection := &Collection{}
+
+	newActions := []routine.Action{}
+	for _, c := range actions {
+		if collection, ok := c.(routine.ActionCollectionable); ok {
+			newActions = append(newActions, collection.Actions()...)
+		} else {
+			newActions = append(newActions, c)
+		}
 	}
+	collection.actions = newActions
+
+	return collection
+}
+
+// AddAction allows you to add an Action to the Collection after creation.
+func (q *Collection) AddAction(action routine.Action) {
+	q.actions = append(q.actions, action)
 }
 
 func (q *Collection) Init(block *routine.Block) {}
@@ -301,6 +340,7 @@ func (l *Label) ID() any { return l.Label }
 
 // NewJumpTo creates a Function action that jumps the Block to the ActionLabel that has
 // the specified label ID.
+// If no Action with the label given is found, then the action will do nothing.
 func NewJumpTo(label any) *Function {
 	return NewFunction(
 		func(block *routine.Block) routine.Flow {
@@ -312,32 +352,49 @@ func NewJumpTo(label any) *Function {
 
 // NewSwitchBlock creates a Function action that switches the routine to only activate blocks with
 // the specified IDs.
+// If no block IDs are specified, all blocks are restarted.
 func NewSwitchBlock(blockIDs ...any) *Function {
 	return NewFunction(
 		func(block *routine.Block) routine.Flow {
-			block.Routine.SwitchBlock(blockIDs...)
+			r := block.Routine()
+			r.Stop(blockIDs...)
+			r.Run(blockIDs...)
 			return routine.FlowNext
 		},
 	)
 }
 
-// NewActivateBlock creates a Function action that activates the specified blocks in the
+// NewRunBlock creates a Function action that activates the specified blocks in the
 // currently running Routine. Any other blocks are unaffected.
-func NewActivateBlock(blockIDs ...any) *Function {
+// If no block IDs are specified, all blocks are run.
+func NewRunBlock(blockIDs ...any) *Function {
 	return NewFunction(
 		func(block *routine.Block) routine.Flow {
-			block.Routine.ActivateBlock(blockIDs...)
+			block.Routine().Run(blockIDs...)
 			return routine.FlowNext
 		},
 	)
 }
 
-// NewDeactivateBlock creates a Function action that deactivates the specified blocks
+// NewPauseBlock creates a Function action that deactivates the specified blocks
 // in the currently running Routine. Any other blocks are unaffected.
-func NewDeactivateBlock(blockIDs ...any) *Function {
+// If no block IDs are specified, all blocks are paused.
+func NewPauseBlock(blockIDs ...any) *Function {
 	return NewFunction(
 		func(block *routine.Block) routine.Flow {
-			block.Routine.DeactivateBlock(blockIDs...)
+			block.Routine().Pause(blockIDs...)
+			return routine.FlowNext
+		},
+	)
+}
+
+// NewStopBlock creates a Function action that deactivates the specified blocks
+// in the currently running Routine. Any other blocks are unaffected.
+// If no block IDs are specified, all blocks are stopped.
+func NewStopBlock(blockIDs ...any) *Function {
+	return NewFunction(
+		func(block *routine.Block) routine.Flow {
+			block.Routine().Stop(blockIDs...)
 			return routine.FlowNext
 		},
 	)
@@ -355,27 +412,17 @@ func NewSetIndex(index int) *Function {
 	)
 }
 
-// NewFinishBlock creates a Function action that simply returns routine.FlowFinishBlock, indicating
+// NewFinish creates a Function action that simply returns routine.FlowFinish, indicating
 // that the current Block has finished and should stop running.
-func NewFinishBlock() *Function {
+func NewFinish() *Function {
 	return NewFunction(
 		func(block *routine.Block) routine.Flow {
-			return routine.FlowFinishBlock
+			return routine.FlowFinish
 		},
 	)
 }
 
-// NewFinishRoutine creates a Function action that simply returns routine.FlowFinishRoutine, indicating
-// that the Routine has finished and should stop running.
-func NewFinishRoutine() *Function {
-	return NewFunction(
-		func(block *routine.Block) routine.Flow {
-			return routine.FlowFinishRoutine
-		},
-	)
-}
-
-// NewLoop creates a Function action that simply loops the current block's execution.
+// NewLoop creates a Function action that simply loops the current block's execution when it is executed.
 func NewLoop() *Function {
 	return NewFunction(func(block *routine.Block) routine.Flow {
 		block.SetIndex(0)

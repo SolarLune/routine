@@ -20,13 +20,13 @@ func defineRoutine(myRoutine *routine.Routine) {
 	next := 0
 
 	// The first block executes every 2 seconds.
-	myRoutine.DefineBlock(0,
+	firstBlock := myRoutine.Define(0,
 
 		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			fmt.Println("First block is just the beginning...")
 
 			// Activate the next block; this happens every 2 seconds.
-			myRoutine.ActivateBlock(next)
+			myRoutine.Run(next)
 			next++
 			return routine.FlowNext
 		}),
@@ -36,8 +36,10 @@ func defineRoutine(myRoutine *routine.Routine) {
 		actions.NewLoop(),
 	)
 
+	firstBlock.Run()
+
 	// The second block executes every half second.
-	myRoutine.DefineBlock(1,
+	myRoutine.Define(1,
 
 		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			fmt.Println("second block is alive and well...")
@@ -50,7 +52,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 	)
 
 	// The third block executes 10 times a second.
-	myRoutine.DefineBlock(2,
+	myRoutine.Define(2,
 
 		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			fmt.Println("third block is going crazy...")
@@ -63,7 +65,7 @@ func defineRoutine(myRoutine *routine.Routine) {
 	)
 
 	// The fourth block executes 20 times a second.
-	myRoutine.DefineBlock(3,
+	myRoutine.Define(3,
 
 		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			fmt.Println("fourth block is kinda insane...!!!")
@@ -76,18 +78,19 @@ func defineRoutine(myRoutine *routine.Routine) {
 	)
 
 	// The last block ends it.
-	myRoutine.DefineBlock(4,
+	myRoutine.Define(4,
 
 		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			// Set only this block to be active
-			myRoutine.SwitchBlock(4)
+			myRoutine.Stop()
+			myRoutine.Run(4)
 			fmt.Println("OK, I'm done. All tuckered out.")
 			return routine.FlowNext
 		}),
 
 		actions.NewWait(time.Second),
 
-		actions.NewFinishRoutine(),
+		actions.NewFinish(),
 	)
 
 }
@@ -99,9 +102,6 @@ func main() {
 
 	// Define the routine.
 	defineRoutine(myRoutine)
-
-	// Run the routine.
-	myRoutine.Run()
 
 	// While it's running...
 	for myRoutine.Running() {

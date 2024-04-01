@@ -20,26 +20,26 @@ func defineRoutine(myRoutine *routine.Routine) {
 	// You customize Actions that live within Blocks, and can change execution for Blocks freely - that's how
 	// you create a Routine that does what you want.
 
-	// Routine.DefineBlock defines a block of Actions to execute in sequence.
-	// Whatever block is the first to be defined will be the default block to run when a Routine is run.
+	// Routine.DefineBlock() defines a block of Actions to execute in sequence.
 
-	// When an Action has completed its behavior, the Block will move on to the next one, until it's at the end.
-	// At that point, the Block will loop.
+	// When an Action has completed its behavior, the Block will move on to the next one, until it's at the end,
+	// at which point, the Block will loop.
 
 	// Below, we define a Block with the ID "first". The ID is a string here, but can be any comparable object.
-	myRoutine.DefineBlock("first",
+	myRoutine.Define("first",
 
-		// actions.NewFunction() creates a Funcion Action that executes a customizeable function.
-		// This function must take the current block and return a RoutineFlow.
-		// A RoutineFlow signals to the running Block in the Routine what to do after the Action ends.
+		// actions.NewFunction() creates a Function Action that executes a customizeable function.
+		// This function must take the current block and return a routine.Flow value.
+		// A routine.Flow signals to the running Block in the Routine what to do after the Action ends.
 
 		// Depending on the RoutineFlow received, the Block can:
 
 		// - Stay on the current Action, repeating the Action the next time Routine.Update() is called (routine.FlowIdle)
-		// - Move to the next Action (routine.FlowNext), or
-		// - End the Routine entirely (routine.FlowFinish).
+		// - Move to the next Action in the Block without waiting (routine.FlowNext), or
+		// - End the Block entirely (routine.FlowFinish).
 
-		// If you want to simply stop a Block at some point, you can do so using Routine.DeactivateBlocks().
+		// If you want to stop all Blocks, you can use Routine.DeactivateAllBlocks().
+
 		actions.NewFunction(func(block *routine.Block) routine.Flow {
 			fmt.Println("Here's a simple block that prints some text, and waits three seconds.")
 			return routine.FlowNext
@@ -50,12 +50,16 @@ func defineRoutine(myRoutine *routine.Routine) {
 		actions.NewFunction(func(block *routine.Block) routine.Flow {
 
 			fmt.Println("Done!")
-			// We can return routine.FlowFinishRoutine here, or use actions.NewFinish() to create a finishing Action to end the
-			// Routine; whichever works.
-			return routine.FlowFinishRoutine
+			// We can return routine.FlowFinish here, use actions.NewFinish() to create a finishing Action to end the
+			// Routine, or simply do nothing if it's at the end of the block. Any of these options work.
+			return routine.FlowFinish
 
 		}),
 	)
+
+	// We activate the Block when we're done, as by default, Blocks aren't active.
+	// This can be done by calling Routine.Run() with the Block's ID, or calling Block.Run().
+	myRoutine.Run("first")
 
 }
 
@@ -66,9 +70,6 @@ func main() {
 
 	// Define the routine.
 	defineRoutine(myRoutine)
-
-	// Run the routine.
-	myRoutine.Run()
 
 	// While it's running...
 	for myRoutine.Running() {

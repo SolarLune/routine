@@ -52,10 +52,8 @@ const (
 	// FlowNext means that the Routine should move on to the next Action in the Block.
 	// If this is returned from the last Action in a Block, the Block will loop.
 	FlowNext
-	// FlowFinishBlock indicates the Block should finish its execution.
-	FlowFinishBlock
-	// FlowFinishRoutine means that the entire Routine should finish its execution.
-	FlowFinishRoutine
+	// FlowFinish indicates the Block should finish its execution, deactivating afterwards.
+	FlowFinish
 )
 
 // Action is an interface that represents an object that can Action and direct the flow of a Routine.
@@ -64,24 +62,27 @@ type Action interface {
 	Poll(block *Block) Flow // The Poll function is called every frame and can return a Flow, indicating what the Routine should do next.
 }
 
-type actionCollectionable interface {
+// ActionCollectionable identifies an interface for an Action that allows it to return a slice of Actions to be added to Blocks, Gates, or Collections in definition.
+type ActionCollectionable interface {
 	Actions() []Action
 }
 
-type actionIdentifiable interface {
+// ActionIdentifiable identifies an interface for an action that allows that Action to be used for jumping (as though it were a label).
+type ActionIdentifiable interface {
 	ID() any
 }
 
 // Block represents a block of Actions. Blocks execute Actions in sequence, and have an ID that allows them to be
 // activated or deactivated at will by their owning Routine.
 type Block struct {
-	isActive     bool
-	Active       bool
-	ID           any
-	Actions      []Action
-	index        int
-	indexChanged bool
-	Routine      *Routine
+	currentlyActive bool
+	active          bool
+	currentFrame    int // The current frame of the Block for the currently running Action.
+	ID              any
+	Actions         []Action
+	index           int
+	indexChanged    bool
+	routine         *Routine
 }
 
 // SetIndex sets the index of the Action sequence of the Block to the value given.
@@ -101,7 +102,8 @@ func (b *Block) SetIndex(index int) {
 
 		b.index = index
 		b.Actions[b.index].Init(b)
-		if b.Routine.Running() {
+		b.currentFrame = 0
+		if b.currentlyActive {
 			b.indexChanged = true
 		}
 
@@ -111,10 +113,10 @@ func (b *Block) SetIndex(index int) {
 
 // JumpTo sets the Block's execution index to the index of a ActionLabel, using the label
 // provided.
-// If it finds the Label, then it will return that index. Otherwise, it will return -1.
+// If it finds the Label, then it will jump to and return that index. Otherwise, it will return -1.
 func (b *Block) JumpTo(labelID any) int {
 	for i, c := range b.Actions {
-		if label, ok := c.(actionIdentifiable); ok {
+		if label, ok := c.(ActionIdentifiable); ok {
 			if label.ID() == labelID {
 				b.SetIndex(i)
 				return i
@@ -129,21 +131,17 @@ func (b *Block) Index() int {
 	return b.index
 }
 
-// Restart restarts the block.
-func (b *Block) Restart() {
-	b.index = -1
-	b.SetIndex(0)
-}
-
 func (b *Block) update() {
 
-	if !b.isActive {
+	if !b.currentlyActive {
 		return
 	}
 
 	b.indexChanged = false
 
 	p := b.Actions[b.index].Poll(b)
+
+	b.currentFrame++
 
 	switch p {
 	case FlowNext:
@@ -154,59 +152,98 @@ func (b *Block) update() {
 
 		if b.index > len(b.Actions)-1 {
 			b.index = 0
-			b.Active = false // Restart if we're going to the next Action and we're at the end of the block
-			b.isActive = false
+			b.active = false
+			b.currentlyActive = false
 		}
 
 		b.Actions[b.index].Init(b)
+		b.currentFrame = 0
 
-	case FlowFinishBlock:
+		if b.active {
+			b.update() // We call update again because it should move on unless it's idling, specifically
+		}
+
+	case FlowFinish:
 		b.index = 0
-		b.Active = false // Restart if we're going to the next Action and we're at the end of the block
-		b.isActive = false
+		b.active = false // Restart if we're going to the next Action and we're at the end of the block
+		b.currentlyActive = false
 		b.Actions[b.index].Init(b)
-
-	case FlowFinishRoutine:
-		b.Routine.Stop()
+		b.currentFrame = 0
 
 	case FlowIdle:
 
 		if b.indexChanged {
 			b.Actions[b.index].Init(b)
+			b.currentFrame = 0
 		}
 
 	}
 
 }
 
-// Routine represents a running function that will execute
-// until the Routine is finished.
+// Run runs the specified block.
+func (b *Block) Run() {
+	b.active = true
+}
+
+// Running returns if the Block is active.
+func (b *Block) Running() bool {
+	return b.active
+}
+
+// Pause pauses the specified block, so that it isn't active when the Routine is run. When it is run again, it resumes execution at its current action.
+func (b *Block) Pause() {
+	b.active = false
+}
+
+// Restart restarts the block.
+func (b *Block) Restart() {
+	b.index = -1
+	b.SetIndex(0)
+}
+
+// Stop stops the Block, so that it restarts when it is run again.
+func (b *Block) Stop() {
+	b.Pause()
+	b.Restart()
+}
+
+// Routine returns the currently running routine.
+func (b *Block) Routine() *Routine {
+	return b.routine
+}
+
+// CurrentFrame returns the current frame of the Block's execution of the currently executed Action.
+// This increases by 1 every Routine.Update() call until the Block executes another Action.
+func (b *Block) CurrentFrame() int {
+	return b.currentFrame
+}
+
+// Routine represents a container to run Blocks of code.
 type Routine struct {
-	running           bool
-	Blocks            []*Block
-	properties        *Properties
-	AutomaticallyStop bool // If the Routine should automatically stop if no Blocks are active
+	Blocks     []*Block
+	properties *Properties
 }
 
 // New creates a new Routine.
 func New() *Routine {
 	r := &Routine{
-		Blocks:            []*Block{},
-		properties:        &Properties{},
-		AutomaticallyStop: true,
+		Blocks:     []*Block{},
+		properties: &Properties{},
 	}
 	return r
 }
 
-// DefineBlock defines a Block using the ID given and the list of Actions provided and adds it to the Routine.
+// Define defines a Block using the ID given and the list of Actions provided and adds it to the Routine.
 // The ID can be of any comparable type.
-// DefineBlock returns the new Block as well.
-func (r *Routine) DefineBlock(blockID any, Actions ...Action) *Block {
+// Define returns the new Block as well.
+// If a block with the given blockID already exists, Define will remove the previous one.
+func (r *Routine) Define(id any, Actions ...Action) *Block {
 
 	newActions := []Action{}
 
 	for _, c := range Actions {
-		if collection, ok := c.(actionCollectionable); ok {
+		if collection, ok := c.(ActionCollectionable); ok {
 			newActions = append(newActions, collection.Actions()...)
 		} else {
 			newActions = append(newActions, c)
@@ -214,55 +251,20 @@ func (r *Routine) DefineBlock(blockID any, Actions ...Action) *Block {
 	}
 
 	newBlock := &Block{
-		ID:      blockID,
-		Routine: r,
+		ID:      id,
+		routine: r,
 		Actions: newActions,
 	}
-	r.Blocks = append(r.Blocks, newBlock)
-	if len(r.Blocks) == 1 {
-		r.Blocks[0].Active = true
-	}
-	return newBlock
-}
 
-// Run starts the Routine.
-func (r *Routine) Run() {
-	if !r.running {
-		r.running = true
-
-		for _, b := range r.Blocks {
-			if b.isActive {
-				b.Actions[b.index].Init(b)
-			}
+	for i, b := range r.Blocks {
+		if b.ID == id {
+			r.Blocks[i] = nil
+			r.Blocks = append(r.Blocks[:i], r.Blocks[i+1:]...)
 		}
-
 	}
-}
 
-// Running returns if the Routine is running.
-func (r *Routine) Running() bool {
-	return r.running
-}
-
-// Restart restarts the Routine.
-func (r *Routine) Restart() {
-	r.running = true
-	for _, b := range r.Blocks {
-		b.SetIndex(0)
-	}
-}
-
-// Pause pauses the Routine; it does not alter the currently active blocks, or where those blocks are in terms of execution.
-func (r *Routine) Pause() {
-	if r.running {
-		r.running = false
-	}
-}
-
-// Stop stops the Routine, restarting it from scratch when it runs again.
-func (r *Routine) Stop() {
-	r.Restart()
-	r.Pause()
+	r.Blocks = append(r.Blocks, newBlock)
+	return newBlock
 }
 
 // Properties returns the Properties object for the Routine.
@@ -273,92 +275,131 @@ func (r *Routine) Properties() *Properties {
 // Update updates the Routine - this should be called once per frame.
 func (r *Routine) Update() {
 
-	if r.running {
-
-		for _, block := range r.Blocks {
-			block.update()
-		}
-
-		anyBlocksActive := false
-
-		for _, block := range r.Blocks {
-			block.isActive = block.Active
-			if block.isActive {
-				anyBlocksActive = true
-			}
-		}
-
-		if r.AutomaticallyStop && !anyBlocksActive {
-			r.Stop()
-		}
-
-	}
-
-}
-
-// ActivateBlock activates blocks with the given IDs.
-func (r *Routine) ActivateBlock(blockIDs ...any) {
 	for _, block := range r.Blocks {
+		block.currentlyActive = block.active
+	}
+
+	for _, block := range r.Blocks {
+		block.update()
+	}
+
+}
+
+// Run runs Blocks with the given IDs.
+// If no block IDs are given, then all blocks contained in the Routine are run.
+func (r *Routine) Run(blockIDs ...any) {
+	if len(blockIDs) == 0 {
+		for _, block := range r.Blocks {
+			block.Run()
+		}
+	} else {
+
 		for _, label := range blockIDs {
-			if block.ID == label {
-				block.Active = true
-				break
+			for _, block := range r.Blocks {
+				if block.ID == label {
+					block.Run()
+					break
+				}
 			}
 		}
+
 	}
 }
 
-// IsBlockActive returns if any of the block IDs given belong to active Blocks.
-func (r *Routine) IsBlockActive(blockIDs ...any) bool {
-	for _, label := range blockIDs {
+// Pause pauses Blocks with the given IDs.
+// If no block IDs are given, then all blocks contained in the Routine are paused.
+func (r *Routine) Pause(blockIDs ...any) {
+	if len(blockIDs) == 0 {
 		for _, block := range r.Blocks {
-			if block.isActive && block.ID == label {
+			block.Pause()
+		}
+	} else {
+
+		for _, label := range blockIDs {
+			for _, block := range r.Blocks {
+				if block.ID == label {
+					block.Pause()
+					break
+				}
+			}
+		}
+
+	}
+
+}
+
+// Stop stops Blocks with the given IDs.
+// If no block IDs are given, then all blocks contained in the Routine are stopped.
+func (r *Routine) Stop(blockIDs ...any) {
+	if len(blockIDs) == 0 {
+		for _, block := range r.Blocks {
+			block.Stop()
+		}
+	} else {
+
+		for _, label := range blockIDs {
+			for _, block := range r.Blocks {
+				if block.ID == label {
+					block.Stop()
+					break
+				}
+			}
+		}
+	}
+
+}
+
+// Restart restarts Blocks with the given IDs.
+// If no block IDs are given, then all blocks contained in the Routine are restarted.
+func (r *Routine) Restart(blockIDs ...any) {
+	if len(blockIDs) == 0 {
+
+		for _, block := range r.Blocks {
+			block.Restart()
+		}
+
+	} else {
+
+		for _, label := range blockIDs {
+			for _, block := range r.Blocks {
+				if block.ID == label {
+					block.Restart()
+					break
+				}
+			}
+		}
+
+	}
+}
+
+// Running returns true if at least one Block is running with at least one of the given IDs in the Routine.
+// If no IDs are given, then any running Blocks will return.
+func (r *Routine) Running(ids ...any) bool {
+	if len(ids) == 0 {
+		for _, b := range r.Blocks {
+			if b.Running() {
 				return true
 			}
 		}
+	} else {
+
+		for _, id := range ids {
+			for _, b := range r.Blocks {
+				if b.ID == id && b.Running() {
+					return true
+				}
+			}
+		}
+
 	}
 	return false
 }
 
-// Deactivate deactivates blocks with the given IDs.
-func (r *Routine) DeactivateBlock(blockIDs ...any) {
-	for _, block := range r.Blocks {
-		for _, label := range blockIDs {
-			if block.ID == label {
-				block.Restart()
-				block.Active = false
-				break
-			}
-		}
-	}
-}
-
-// SwitchBlock will only activate blocks with any of the given IDs, and deactivates all others.
-func (r *Routine) SwitchBlock(blockIDs ...any) {
-
-	for _, block := range r.Blocks {
-		block.Active = false
-
-		for _, label := range blockIDs {
-			if block.ID == label {
-				block.Active = true
-				break
-			}
-		}
-
-		// Restart inactivated blocks
-		if !block.Active {
-			block.Restart()
-		}
-
-	}
-
-}
-
 // BlockByID returns any Block found with the given ID.
-func (r *Routine) BlockByID(idLabel any) *Block {
+// If no Block with the given id is found, nil is returned.
+func (r *Routine) BlockByID(id any) *Block {
 	for _, block := range r.Blocks {
-		if block.ID == idLabel {
+		if block.ID == id {
 			return block
 		}
 	}
